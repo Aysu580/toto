@@ -1,0 +1,67 @@
+[gd_scene format=3 uid="uid://da6twnc8yxp02"]
+
+[ext_resource type="Script" uid="uid://dwjvg7s2sdw3e" path="res://control.gd" id="1_vau7r"]
+
+[node name="Control" type="Control" unique_id=621991508]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_vau7r")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1235032845]
+layout_mode = 0
+offset_right = 1162.0
+offset_bottom = 645.0
+color = Color(0.105882354, 0.36862746, 0.1254902, 1)
+
+[node name="TableArea" type="Control" parent="." unique_id=1646481084]
+anchors_preset = 0
+offset_left = 1300.0
+offset_top = 800.0
+offset_right = 1300.0
+offset_bottom = 800.0
+
+[node name="CenterCards" type="Control" parent="." unique_id=1851585006]
+anchors_preset = 0
+offset_left = 300.0
+offset_top = 200.0
+offset_right = 800.0
+offset_bottom = 500.0
+
+[node name="PlayerLeft" type="Control" parent="." unique_id=326813023]
+anchors_preset = 0
+offset_left = 54.0
+offset_top = 133.0
+offset_right = 119.0
+offset_bottom = 533.0
+
+[node name="PlayerRight" type="Control" parent="." unique_id=1769770142]
+anchors_preset = 0
+offset_left = 1027.0
+offset_top = 129.0
+offset_right = 1092.0
+offset_bottom = 529.0
+
+[node name="PlayerTop" type="Control" parent="." unique_id=920774386]
+anchors_preset = 0
+offset_left = 217.0
+offset_top = 52.0
+offset_right = 917.0
+offset_bottom = 133.0
+
+[node name="PlayerBottom" type="Control" parent="." unique_id=1896267897]
+anchors_preset = 0
+offset_left = 239.0
+offset_top = 508.0
+offset_right = 939.0
+offset_bottom = 604.0
+
+[node name="StatusLabel" type="Label" parent="." unique_id=1073377049]
+layout_mode = 0
+offset_left = 298.0
+offset_top = 209.0
+offset_right = 848.0
+offset_bottom = 409.0
