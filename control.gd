@@ -25,11 +25,26 @@ var guess_inputs := {}
 var guess_summary_label: Label
 var prediction_panel: PanelContainer
 var confirm_button: Button
+var new_round_button: Button
 
 var round_locked := false
 
+# Anlık tur puanları
+var round_scores := {
+	"Player1": 0,
+	"Player2": 0,
+	"Player3": 0,
+	"Player4": 0
+}
+
+# Puan tablosu UI
+var score_button: Button
+var score_panel: PanelContainer
+var score_labels := {}
+
+
 func get_card_info(card_path: String) -> Dictionary:
-	var file_name := card_path.get_file().get_basename() # örn: hearts_10
+	var file_name := card_path.get_file().get_basename()
 	var parts := file_name.split("_")
 
 	if parts.size() < 2:
@@ -85,9 +100,11 @@ func get_suit_display_name(suit: String) -> String:
 			return "Maça"
 		_:
 			return suit
-func determine_winner() -> String:
+
+
+func get_winner_key() -> String:
 	if koz_card == "":
-		return "Kazanan belirlenemedi"
+		return ""
 
 	var koz_info := get_card_info(koz_card)
 	var koz_suit: String = koz_info["suit"]
@@ -99,14 +116,11 @@ func determine_winner() -> String:
 		{"key": "left", "label": "Player4"}
 	]
 
-	var winner_name := ""
+	var winner_key := ""
 	var highest_value := -1
-	var matched_suit := koz_suit
 
-	# 1) Önce koz türüne göre kazanan ara
 	for player in reveal_order:
 		var key: String = player["key"]
-		var label: String = player["label"]
 
 		if player_hands[key].is_empty():
 			continue
@@ -120,23 +134,20 @@ func determine_winner() -> String:
 			var rank_value := get_rank_value(rank)
 			if rank_value > highest_value:
 				highest_value = rank_value
-				winner_name = label
+				winner_key = key
 
-	# 2) Hiç kimseye koz gelmediyse, Player1'in türünü baz al
-	if winner_name == "":
+	if winner_key == "":
 		if player_hands["top"].is_empty():
-			return "Kazanan belirlenemedi"
+			return ""
 
-		var first_player_card :String = player_hands["top"][0]
+		var first_player_card: String = player_hands["top"][0]
 		var first_card_info := get_card_info(first_player_card)
 		var first_suit: String = first_card_info["suit"]
 
-		matched_suit = first_suit
 		highest_value = -1
 
 		for player in reveal_order:
 			var key: String = player["key"]
-			var label: String = player["label"]
 
 			if player_hands[key].is_empty():
 				continue
@@ -150,25 +161,62 @@ func determine_winner() -> String:
 				var rank_value := get_rank_value(rank)
 				if rank_value > highest_value:
 					highest_value = rank_value
-					winner_name = label
+					winner_key = key
 
-		return "%s kazandı! Koz gelmedi, Player1 türü baz alındı: %s" % [winner_name, get_suit_display_name(matched_suit)]
+	return winner_key
 
-	return "%s kazandı! Koz türü: %s" % [winner_name, get_suit_display_name(matched_suit)]
 
-	
+func get_player_label_from_key(player_key: String) -> String:
+	match player_key:
+		"top":
+			return "Player1"
+		"right":
+			return "Player2"
+		"bottom":
+			return "Player3"
+		"left":
+			return "Player4"
+		_:
+			return ""
+
+
+func determine_winner() -> String:
+	if koz_card == "":
+		return "Kazanan belirlenemedi"
+
+	var koz_info := get_card_info(koz_card)
+	var koz_suit: String = koz_info["suit"]
+	var winner_key := get_winner_key()
+
+	if winner_key == "":
+		return "Kazanan belirlenemedi"
+
+	var winner_name := get_player_label_from_key(winner_key)
+
+	for key in ["top", "right", "bottom", "left"]:
+		if player_hands[key].is_empty():
+			continue
+
+		var info := get_card_info(player_hands[key][0])
+		if info["suit"] == koz_suit:
+			return "%s kazandı! Koz türü: %s" % [winner_name, get_suit_display_name(koz_suit)]
+
+	if not player_hands["top"].is_empty():
+		var first_info := get_card_info(player_hands["top"][0])
+		return "%s kazandı! Koz gelmedi, Player1 türü baz alındı: %s" % [winner_name, get_suit_display_name(first_info["suit"])]
+
+	return "%s kazandı!" % winner_name
+
 
 func _ready() -> void:
 	create_prediction_panel()
+	create_score_button()
+	create_score_panel()
+	create_new_round_button()
 	start_one_round()
-	
-	# Yazıyı yukarı al
+
 	status_label.position.y = 20
-
-# Font büyüt
 	status_label.add_theme_font_size_override("font_size", 26)
-
-# Bold efekti (outline ile daha net görünür)
 	status_label.add_theme_constant_override("outline_size", 4)
 	status_label.add_theme_color_override("font_outline_color", Color.BLACK)
 
@@ -182,6 +230,19 @@ func start_one_round() -> void:
 	enable_guess_inputs(true)
 	confirm_button.disabled = false
 	status_label.text = "Kartlar dağıtıldı, koz açıldı. Tahminleri girin."
+
+
+func create_new_round_button() -> void:
+	new_round_button = Button.new()
+	new_round_button.text = "Yeni Tur"
+	new_round_button.position = Vector2(20, 40)
+	new_round_button.custom_minimum_size = Vector2(130, 36)
+	new_round_button.pressed.connect(_on_new_round_pressed)
+	add_child(new_round_button)
+
+
+func _on_new_round_pressed() -> void:
+	start_one_round()
 
 
 func clear_old_round() -> void:
@@ -203,6 +264,14 @@ func clear_old_round() -> void:
 
 	reset_guess_inputs()
 	enable_guess_inputs(false)
+
+	round_scores = {
+		"Player1": 0,
+		"Player2": 0,
+		"Player3": 0,
+		"Player4": 0
+	}
+	update_score_panel()
 
 	if is_instance_valid(confirm_button):
 		confirm_button.disabled = true
@@ -255,8 +324,8 @@ func deal_one_card_to_each_player() -> void:
 		if player["face_up"]:
 			shown_texture_path = dealt_card
 
-		var card := create_card_texture_rect(shown_texture_path)
-		player["node"].add_child(card)
+		var card_block := create_player_card_block(player["label"], shown_texture_path, Vector2.ZERO)
+		player["node"].add_child(card_block)
 
 		status_label.text = str(player["label"]) + " kartını aldı"
 		await get_tree().create_timer(0.45).timeout
@@ -380,7 +449,7 @@ func create_prediction_panel() -> void:
 	for player_name in player_names:
 		var spin := SpinBox.new()
 		spin.min_value = 0
-		spin.max_value = 13
+		spin.max_value = 1
 		spin.step = 1
 		spin.value = 0
 		spin.custom_minimum_size = Vector2(55, 0)
@@ -399,6 +468,52 @@ func create_prediction_panel() -> void:
 	confirm_button.disabled = true
 	confirm_button.pressed.connect(_on_confirm_guesses_pressed)
 	outer_vbox.add_child(confirm_button)
+
+
+func create_score_button() -> void:
+	score_button = Button.new()
+	score_button.text = "Puan Tablosu"
+	score_button.position = Vector2(20, 80)
+	score_button.custom_minimum_size = Vector2(130, 36)
+	score_button.pressed.connect(_on_score_button_pressed)
+	add_child(score_button)
+
+
+func create_score_panel() -> void:
+	score_panel = PanelContainer.new()
+	score_panel.visible = false
+	score_panel.position = Vector2(20, 125)
+	score_panel.size = Vector2(230, 180)
+	add_child(score_panel)
+
+	var outer_vbox := VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 8)
+	score_panel.add_child(outer_vbox)
+
+	var title := Label.new()
+	title.text = "Puan Tablosu"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	outer_vbox.add_child(title)
+
+	for player_name in ["Player1", "Player2", "Player3", "Player4"]:
+		var score_label := Label.new()
+		score_label.text = player_name + ": 0"
+		outer_vbox.add_child(score_label)
+		score_labels[player_name] = score_label
+
+
+func _on_score_button_pressed() -> void:
+	score_panel.visible = not score_panel.visible
+	update_score_panel()
+
+
+func update_score_panel() -> void:
+	if score_labels.is_empty():
+		return
+
+	for player_name in ["Player1", "Player2", "Player3", "Player4"]:
+		if score_labels.has(player_name):
+			score_labels[player_name].text = player_name + ": " + str(round_scores[player_name])
 
 
 func reset_guess_inputs() -> void:
@@ -438,8 +553,24 @@ func _on_confirm_guesses_pressed() -> void:
 	await reveal_players_cards_in_order()
 
 
+func calculate_round_scores() -> void:
+	var winner_key := get_winner_key()
+	var winner_label := get_player_label_from_key(winner_key)
+
+	for player_name in ["Player1", "Player2", "Player3", "Player4"]:
+		var guess := int(guess_inputs[player_name].value)
+
+		if guess == 1 and player_name == winner_label:
+			round_scores[player_name] = 11
+		elif guess == 0 and player_name != winner_label:
+			round_scores[player_name] = 10
+		else:
+			round_scores[player_name] = 0
+
+	update_score_panel()
+
+
 func reveal_players_cards_in_order() -> void:
-	# Önce ekran temizleniyor
 	clear_children(center_cards)
 
 	clear_children(player_top)
@@ -447,7 +578,6 @@ func reveal_players_cards_in_order() -> void:
 	clear_children(player_bottom)
 	clear_children(player_left)
 
-	# Sol üstte KOZ başlığı ve altında koz kartı tekrar gösteriliyor
 	create_koz_display()
 
 	var reveal_order = [
@@ -457,7 +587,6 @@ func reveal_players_cards_in_order() -> void:
 		{"key": "left", "label": "Player4"}
 	]
 
-	# Kartlar daha yukarı alındı, böylece tahmin tablosuyla çakışmayacak
 	var start_x := 190.0
 	var y := 25.0
 	var gap := 150.0
@@ -476,6 +605,8 @@ func reveal_players_cards_in_order() -> void:
 
 		status_label.text = label + " kartını açtı"
 		await get_tree().create_timer(1.8).timeout
+
+	calculate_round_scores()
 
 	var winner_text := determine_winner()
 	status_label.text = "Tüm oyuncular kartlarını açtı. " + winner_text
