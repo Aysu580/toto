@@ -1,0 +1,196 @@
+[gd_scene format=3 uid="uid://dnpbysqoeq041"]
+
+[sub_resource type="Theme" id="Theme_r5v3i"]
+
+[sub_resource type="GDScript" id="GDScript_r5v3i"]
+resource_name = "lobby.gd"
+script/source = "extends Control
+
+const PORT := 7000
+const MAX_CLIENTS := 3
+
+@onready var host_button = $VBoxContainer/Host_Button
+@onready var join_button = $VBoxContainer/Join_Button
+@onready var start_button = $VBoxContainer/Start_Button
+@onready var ip_input = $VBoxContainer/Ip_Input
+@onready var status_label = $VBoxContainer/Status_Label
+
+var peer: ENetMultiplayerPeer
+
+
+func _ready():
+	status_label.text = \"Not Connected\"
+	start_button.visible = false
+	start_button.disabled = false
+
+	host_button.pressed.connect(_on_host_button_pressed)
+	join_button.pressed.connect(_on_join_button_pressed)
+	start_button.pressed.connect(_on_start_button_pressed)
+
+	multiplayer.peer_connected.connect(_on_peer_connected)
+	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	multiplayer.connected_to_server.connect(_on_connected_to_server)
+	multiplayer.connection_failed.connect(_on_connection_failed)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
+
+
+func _on_host_button_pressed():
+	peer = ENetMultiplayerPeer.new()
+	var error = peer.create_server(PORT, MAX_CLIENTS)
+
+	if error != OK:
+		status_label.text = \"Server baslatilamadi\"
+		return
+
+	multiplayer.multiplayer_peer = peer
+	status_label.text = \"Host acildi. Oyuncu bekleniyor...\"
+
+	host_button.disabled = true
+	join_button.disabled = true
+	ip_input.editable = false
+
+
+func _on_join_button_pressed():
+	var ip = ip_input.text.strip_edges()
+
+	if ip == \"\":
+		status_label.text = \"IP gir\"
+		return
+
+	peer = ENetMultiplayerPeer.new()
+	var error = peer.create_client(ip, PORT)
+
+	if error != OK:
+		status_label.text = \"Baglanti baslatilamadi\"
+		return
+
+	multiplayer.multiplayer_peer = peer
+	status_label.text = \"Baglaniliyor: \" + ip
+
+	host_button.disabled = true
+	join_button.disabled = true
+	ip_input.editable = false
+
+
+func _on_connected_to_server():
+	status_label.text = \"Baglandi. Host oyunu baslatacak...\"
+
+
+func _on_connection_failed():
+	status_label.text = \"Connection failed\"
+	_reset_ui()
+
+
+func _on_server_disconnected():
+	status_label.text = \"Server disconnected\"
+	_reset_ui()
+
+
+func _on_peer_connected(id):
+	if multiplayer.is_server():
+		start_button.visible = true
+		start_button.disabled = false
+		status_label.text = \"Oyuncu baglandi. Oyuna basla butonuna bas.\"
+
+
+func _on_peer_disconnected(id):
+	status_label.text = \"Oyuncu ayrildi: \" + str(id)
+
+	if multiplayer.is_server():
+		start_button.visible = false
+
+
+func _on_start_button_pressed():
+	if not multiplayer.is_server():
+		return
+
+	start_game.rpc()
+
+
+@rpc(\"any_peer\", \"call_local\", \"reliable\")
+func start_game():
+	host_button.disabled = true
+	join_button.disabled = true
+	start_button.disabled = true
+	ip_input.editable = false
+
+	status_label.text = \"OYUN BASLIYOR!!\"
+
+	await get_tree().create_timer(2.0).timeout
+	get_tree().change_scene_to_file(\"res://GameScreen.tscn\")
+
+
+func _reset_ui():
+	host_button.disabled = false
+	join_button.disabled = false
+	ip_input.editable = true
+	start_button.visible = false
+	start_button.disabled = false
+	status_label.text = \"Not Connected\"
+"
+
+[node name="Control" type="Control" unique_id=1494475307]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_r5v3i")
+script = SubResource("GDScript_r5v3i")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1897214239]
+layout_mode = 0
+offset_right = 1151.0
+offset_bottom = 647.0
+color = Color(0.5019608, 0, 0.1254902, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=2058934510]
+layout_mode = 0
+offset_left = 326.0
+offset_top = 231.0
+offset_right = 836.0
+offset_bottom = 481.0
+
+[node name="Host_Button" type="Button" parent="VBoxContainer" unique_id=467686756]
+custom_minimum_size = Vector2(260, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "HOST GAME
+"
+
+[node name="Join_Button" type="Button" parent="VBoxContainer" unique_id=1678100570]
+custom_minimum_size = Vector2(260, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "JOIN GAME
+"
+
+[node name="Start_Button" type="Button" parent="VBoxContainer" unique_id=332688756]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "OYUNA BAŞLA
+"
+
+[node name="Ip_Input" type="LineEdit" parent="VBoxContainer" unique_id=2123043440]
+custom_minimum_size = Vector2(260, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+placeholder_text = "ip adresini girin"
+
+[node name="Status_Label" type="Label" parent="VBoxContainer" unique_id=1833967171]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Not Connected
+"
+
+[node name="toto-text" type="TextEdit" parent="." unique_id=783351208]
+layout_mode = 0
+offset_left = 326.0
+offset_right = 826.0
+offset_bottom = 170.0
+theme_override_font_sizes/font_size = 150
+text = " TOTO"
+
+[connection signal="pressed" from="VBoxContainer/Host_Button" to="." method="_on_host_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/Join_Button" to="." method="_on_join_button_pressed"]
